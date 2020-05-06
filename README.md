@@ -24,12 +24,13 @@ Usage Example:
       // Optional, if no markers are used it go zoom to 0 unless set.
       // If markers are used this will override default auto zoom which which zooms to fit all markers
       // 'zoom' => 18 
-      //  Pptional, use if no markers are set. If markers are set this will override default which sets center to marker(s).
+      //  Optional, use if no markers are set. If markers are set this will override default which sets center to marker(s).
       // 'mapCenter' => [
       //  'lat'=>51.1484793,
       //  'lon'=>-100.4912917
       // ]
-      // 'markerIcon' => '<img src="marker.png" class="marker" style="width:100%;height:auto;">' // Optional, overwrite default marker image.
+      // Optional, overwrite default marker image.
+      // 'markerIcon' => '<img src="marker.png" class="marker" style="width:100%;height:auto;">'
     ];
     $staticMap = new staticMap($args);
     // Outputs HTML of map. Pass false as parameter to prevent return HTML string instead of echo-ing
