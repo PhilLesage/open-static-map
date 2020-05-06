@@ -22,7 +22,9 @@ class staticMap
 			// 'zoom' => 16,
 			'markerWidth' => 20,
 			'markerHeight' => 32,
-			'tiles' => 'mapnik',
+			// 'tiles' => 'mapnik',
+			'markers' => [],
+			'mapCenter' => null,
 			'markerIcon' => '<img src="marker.png" class="marker" style="width:100%;height:auto;">'
 		];
 		$params = array_merge($defaults, $args);
@@ -45,6 +47,7 @@ class staticMap
 		$this->markerWidth = $args['markerWidth'];
 		$this->markerHeight = $args['markerHeight'];
 		$this->markerIcon = $args['markerIcon'];
+		$this->mapCenter = $args['mapCenter'];
 		$this->padding = 50;
 
 		if( isset($args['zoom']) ) {
@@ -69,7 +72,11 @@ class staticMap
 		$min_y_tiles = round($args['mapHeight'] / $args['scale']) + 1;
 
 		if( isset($args['markers']) ) {
-			$this->markersLatLonCenter = $this->getMarkersLatLonCenter($args['markers']);
+			if($this->mapCenter === null) {
+				$this->markersLatLonCenter = $this->getMarkersLatLonCenter($args['markers']);
+			} else {
+				$this->markersLatLonCenter = $this->mapCenter;
+			}
 
 			$this->tileXCenter = $this->lon2tile($this->markersLatLonCenter['lon']);
 			$this->tileYCenter = $this->lat2tile($this->markersLatLonCenter['lat']);
@@ -85,11 +92,12 @@ class staticMap
 				'x' => $this->mapWidth/2 - $this->markersXYCenter['x'],
 				'y' => $this->mapHeight/2 - $this->markersXYCenter['y']
 			];
+
 		}
 
 		# $tiles = isset($_REQUEST['tiles']) && preg_match('/^[a-z0-9|-]+$/', $_REQUEST['tiles']) ? $_REQUEST['tiles'] : 'mapnik';
-		$this->tiles = $args['tiles'];
-		$this->layers = $this->get_layers($this->tiles, $this->zoom);
+		// $this->tiles = $args['tiles'];
+		$this->layers = $this->get_layers();
 	}
 
   /**
@@ -335,13 +343,14 @@ class staticMap
 		return $xy;
 	}
 
-	/**/
-	public function get_layers($tiles, $zoom = null) {
-		if($zoom === null) $zoom = $this->zoom;
+	/**
+	 * Get map layers/tiles, add respective attribution
+	 * @return (array) map layers
+	*/
+	public function get_layers() {
 		$result = array();
+		$result[] = 'http://tile.openstreetmap.org/!z/!x/!y.png';
 		$this->attribution = 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a>';
-		if( !count($result) )
-			$result[] = 'http://tile.openstreetmap.org/!z/!x/!y.png';
 		$attrib_plain = str_replace('&copy;', '(c)', preg_replace('/<[^>]+>/', '', $this->attribution));
 		return $result;
 	}
@@ -349,6 +358,21 @@ class staticMap
 	public function get_marker_html($marker){
 		$xy = $this->setMarkerPosition($marker);
 		return '<div class="marker-wrap" style="width:'.$this->markerWidth.'px;height:'.$this->markerHeight.'px;position:absolute;top:'.$xy['y'].'px;left:'.$xy['x'].'px">'.$this->markerIcon.'</div>';
+	}
+
+	/**
+	 * Returns max number of tiles for given zoom
+	 * See: https://wiki.openstreetmap.org/wiki/Zoom_levels
+	 *
+	 * @param $zoom (int) zoom level
+	 * @return (array) max number of tiles in zoom level
+	*/
+	public function max_tiles_in_z_lv($zoom = null){
+		$zoom = $zoom ? $zoom : $this->zoom;
+		$max_tiles = [
+			1, 4, 16, 64, 256, 1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216, 67108864, 268435456, 1073741824, 4294967296, 17179869184, 68719476736, 274877906944, 1099511627776
+		];
+		return $max_tiles[$zoom];
 	}
 
 	public function output($echo = true){
@@ -366,6 +390,8 @@ class staticMap
 						$yp = $this->tileScale * ($y - $this->tileYmin);
 						$style = "style=\"position: absolute; left: ${xp}px; top: ${yp}px; width: {$this->tileScale}px; height: {$this->tileScale}px\"";
 						for( $l = 0; $l < count($this->layers); $l++ ) {
+							// prevent tring to get tile that don't exist
+							if($x < 0 || $y < 0 || $y > ($this->max_tiles_in_z_lv()-1) || $x> ($this->max_tiles_in_z_lv()-1)) continue;
 							$bg = str_replace('!x', $x, str_replace('!y', $y, str_replace('!z', $this->zoom, $this->layers[$l])));
 							if( preg_match('/{([a-z0-9]+)}/', $bg, $m) )
 								$bg = str_replace($m[0], substr($m[1], rand(0, strlen($m[1]) - 1), 1), $bg);
